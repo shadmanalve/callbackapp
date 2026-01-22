@@ -18,7 +18,7 @@ function safeStringify(obj: any) {
 
 function formatPreview(payload: any) {
   const s = safeStringify(payload);
-  return s.length > 180 ? s.slice(0, 180) + "…" : s;
+  return s?.length > 180 ? s.slice(0, 180) + "…" : s;
 }
 
 export default function EventsPage() {
@@ -70,7 +70,7 @@ export default function EventsPage() {
           <div>
             <div style={{ fontSize: 20, fontWeight: 800 }}>Webhook Viewer</div>
             <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-              {loading ? "Loading…" : `${list.length} event(s)`} • polling every 4s
+              {loading ? "Loading…" : `${list?.length} event(s)`} • polling every 4s
             </div>
           </div>
 
@@ -127,7 +127,7 @@ export default function EventsPage() {
                 );
               })}
 
-              {list.length === 0 && <div style={{ padding: 12, opacity: 0.8 }}>No events.</div>}
+              {list?.length === 0 && <div style={{ padding: 12, opacity: 0.8 }}>No events.</div>}
             </div>
           </section>
 
@@ -221,7 +221,7 @@ function Node({ name, value, depth }: { name: string | null; value: any; depth: 
   }
 
   const keys = isArr ? value.map((_: any, i: number) => String(i)) : Object.keys(value);
-  const label = isArr ? `Array(${keys.length})` : `Object(${keys.length})`;
+  const label = isArr ? `Array(${keys?.length})` : `Object(${keys?.length})`;
 
   return (
     <div>
