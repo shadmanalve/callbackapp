@@ -1,23 +1,33 @@
-import { kv } from "@vercel/kv";
 import { NextResponse } from "next/server";
+import { list } from "@vercel/blob";
 
-const LIST_KEY = "events:list";
+const FILE = "events/events.json";
+
+async function readEvents() {
+  const { blobs } = await list({ prefix: FILE, limit: 1 });
+
+  if (!blobs.length) return [];
+  const url = blobs[0].url;
+
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) return [];
+
+  const data = await r.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim().toLowerCase();
-  const limit = Math.min(Number(searchParams.get("limit") || "200"), 1000);
+  const limit = Math.min(Number(searchParams.get("limit") || "300"), 2000);
 
-  const raw = (await kv.lrange<string>(LIST_KEY, 0, limit - 1)) || [];
-  const events = raw
-    .map((s) => {
-      try { return JSON.parse(s); } catch { return null; }
-    })
-    .filter(Boolean);
+  const events = (await readEvents()).slice(0, limit);
 
   const filtered = !q
     ? events
-    : events.filter((e: any) => JSON.stringify(e.payload).toLowerCase().includes(q));
+    : events.filter((e: any) =>
+        JSON.stringify(e).toLowerCase().includes(q)
+      );
 
   return NextResponse.json({ ok: true, count: filtered.length, events: filtered });
 }

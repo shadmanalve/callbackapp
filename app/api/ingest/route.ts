@@ -1,29 +1,42 @@
-import { kv } from "@vercel/kv";
 import { NextResponse } from "next/server";
+import { list, put } from "@vercel/blob";
 
-const LIST_KEY = "events:list";
+const FILE = "events/events.json";
 const MAX_EVENTS = 5000;
 
+async function readEvents() {
+  const { blobs } = await list({ prefix: FILE, limit: 1 });
+  if (!blobs.length) return [];
+  const r = await fetch(blobs[0].url, { cache: "no-store" });
+  const data = await r.json().catch(() => []);
+  return Array.isArray(data) ? data : [];
+}
+
 export async function POST(req: Request) {
+  // protect ingest so random people can’t spam your storage
   const secret = req.headers.get("x-ingest-secret");
   if (!process.env.INGEST_SECRET || secret !== process.env.INGEST_SECRET) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  const body = await req.json().catch(() => null);
-  if (!body) return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  const payload = await req.json().catch(() => null);
+  if (!payload) return NextResponse.json({ ok: false }, { status: 400 });
 
-  const event = {
+  const events = await readEvents();
+
+  events.unshift({
     id: crypto.randomUUID(),
     receivedAt: new Date().toISOString(),
-    payload: body,
-  };
+    payload,
+  });
 
-  // push newest to the front
-  await kv.lpush(LIST_KEY, JSON.stringify(event));
+  const trimmed = events.slice(0, MAX_EVENTS);
 
-  // trim to max
-  await kv.ltrim(LIST_KEY, 0, MAX_EVENTS - 1);
+  await put(FILE, JSON.stringify(trimmed), {
+    access: "public",
+    addRandomSuffix: false, // IMPORTANT: overwrite same “file”
+    contentType: "application/json",
+  });
 
   return NextResponse.json({ ok: true });
 }
