@@ -1,42 +1,29 @@
 import { NextResponse } from "next/server";
-import { list, put } from "@vercel/blob";
+import { put } from "@vercel/blob";
 
-const FILE = "events/events.json";
-const MAX_EVENTS = 5000;
-
-async function readEvents() {
-  const { blobs } = await list({ prefix: FILE, limit: 1 });
-  if (!blobs.length) return [];
-  const r = await fetch(blobs[0].url, { cache: "no-store" });
-  const data = await r.json().catch(() => []);
-  return Array.isArray(data) ? data : [];
-}
+const PREFIX = "events/";
+const CLEAR_FILE = `${PREFIX}_clear.json`;
 
 export async function POST(req: Request) {
-  // protect ingest so random people can’t spam your storage
   const secret = req.headers.get("x-ingest-secret");
   if (!process.env.INGEST_SECRET || secret !== process.env.INGEST_SECRET) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
   const payload = await req.json().catch(() => null);
-  if (!payload) return NextResponse.json({ ok: false }, { status: 400 });
+  if (!payload) return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
 
-  const events = await readEvents();
-
-  events.unshift({
+  const event = {
     id: crypto.randomUUID(),
     receivedAt: new Date().toISOString(),
     payload,
-  });
+  };
 
-  const trimmed = events.slice(0, MAX_EVENTS);
+  // unique file per event => no overwrite issues ever
+  const filename = `${PREFIX}${Date.now()}-${event.id}.json`;
 
-  await put(FILE, JSON.stringify(trimmed), {
+  await put(filename, JSON.stringify(event), {
     access: "public",
-    addRandomSuffix: false, // IMPORTANT: overwrite same “file”
-      allowOverwrite: true,      // ✅ ADD THIS
-
     contentType: "application/json",
   });
 
