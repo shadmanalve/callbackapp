@@ -1,10 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-
-// react-json-view needs window, so load client-side only
-const ReactJson = dynamic(() => import("react-json-view"), { ssr: false });
 
 type EventItem = {
   id: string;
@@ -21,7 +17,6 @@ function safeStringify(obj: any) {
 }
 
 function formatPreview(payload: any) {
-  // nicer preview for list items
   const s = safeStringify(payload);
   return s.length > 180 ? s.slice(0, 180) + "…" : s;
 }
@@ -66,26 +61,16 @@ export default function EventsPage() {
   }, []);
 
   const list = useMemo(() => events, [events]);
-
   const selectedJson = selected ? safeStringify(selected.payload) : "";
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        padding: 16,
-        background: "#0b0b0c",
-        color: "#eaeaea",
-        fontFamily:
-          'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial',
-      }}
-    >
+    <div style={page()}>
       <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <header style={header()}>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>Webhook Viewer</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>Webhook Viewer</div>
             <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-              {loading ? "Loading…" : `${list.length} event(s) loaded`} • Polling every 4s
+              {loading ? "Loading…" : `${list.length} event(s)`} • polling every 4s
             </div>
           </div>
 
@@ -96,35 +81,26 @@ export default function EventsPage() {
                 await fetch("/api/clear", { method: "POST" });
                 await load();
               }}
-              style={btn()}
+              style={btnDanger()}
             >
               Clear
             </button>
 
-            <button onClick={load} style={btnSecondary()}>
+            <button onClick={load} style={btn()}>
               Refresh
             </button>
           </div>
-        </div>
+        </header>
 
-        <div
-          style={{
-            marginTop: 14,
-            display: "grid",
-            gridTemplateColumns: "460px 1fr",
-            gap: 14,
-          }}
-        >
-          {/* LEFT: list */}
-          <div style={panel()}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search anything… (phone, name, object, leadgen)"
-                style={input()}
-              />
-            </div>
+        <main style={grid()}>
+          {/* LEFT */}
+          <section style={panel()}>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search anything… (phone, name, object, leadgen)"
+              style={input()}
+            />
 
             <div style={{ marginTop: 12, maxHeight: "78vh", overflow: "auto", paddingRight: 6 }}>
               {list.map((e) => {
@@ -133,70 +109,55 @@ export default function EventsPage() {
                   <button
                     key={e.id}
                     onClick={() => setSelected(e)}
-                    style={{
-                      ...listItem(),
-                      ...(active ? listItemActive() : {}),
-                    }}
+                    style={{ ...card(), ...(active ? cardActive() : {}) }}
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
                       <div style={{ fontSize: 12, opacity: 0.75 }}>
                         {new Date(e.receivedAt).toLocaleString()}
                       </div>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          opacity: 0.7,
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          border: "1px solid rgba(255,255,255,0.10)",
-                        }}
-                      >
+                      <div style={badge()}>
                         {typeof e.payload?.object === "string" ? e.payload.object : "event"}
                       </div>
                     </div>
 
-                    <div style={{ marginTop: 8, fontSize: 12, opacity: 0.85, lineHeight: 1.35 }}>
+                    <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, lineHeight: 1.35 }}>
                       {formatPreview(e.payload)}
                     </div>
                   </button>
                 );
               })}
 
-              {list.length === 0 && (
-                <div style={{ padding: 12, opacity: 0.8 }}>No events found.</div>
-              )}
+              {list.length === 0 && <div style={{ padding: 12, opacity: 0.8 }}>No events.</div>}
             </div>
-          </div>
+          </section>
 
-          {/* RIGHT: details */}
-          <div style={panel()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* RIGHT */}
+          <section style={panel()}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>Event Details</div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>Event Details</div>
                 {selected ? (
                   <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
                     id: <span style={{ opacity: 0.9 }}>{selected.id}</span> •{" "}
                     {new Date(selected.receivedAt).toLocaleString()}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>
-                    Select an event on the left.
-                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Select an event.</div>
                 )}
               </div>
 
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ display: "flex", gap: 6, padding: 4, borderRadius: 10, border: softBorder() }}>
+                <div style={toggleWrap()}>
                   <button
                     onClick={() => setViewMode("tree")}
-                    style={viewMode === "tree" ? pillActive() : pill()}
+                    style={viewMode === "tree" ? toggleOn() : toggleOff()}
                     disabled={!selected}
                   >
                     Tree
                   </button>
                   <button
                     onClick={() => setViewMode("lines")}
-                    style={viewMode === "lines" ? pillActive() : pill()}
+                    style={viewMode === "lines" ? toggleOn() : toggleOff()}
                     disabled={!selected}
                   >
                     Lines
@@ -209,88 +170,148 @@ export default function EventsPage() {
                     await navigator.clipboard.writeText(selectedJson);
                     alert("Copied JSON");
                   }}
-                  style={btnSecondary()}
+                  style={btn()}
                   disabled={!selected}
                 >
-                  Copy JSON
+                  Copy
                 </button>
               </div>
             </div>
 
             <div style={{ marginTop: 12 }}>
               {!selected ? (
-                <div style={{ padding: 12, opacity: 0.8 }}>
-                  Choose an event to see beautified JSON.
-                </div>
-              ) : viewMode === "tree" ? (
-                <div style={{ border: softBorder(), borderRadius: 12, padding: 12, overflow: "auto" }}>
-                  <ReactJson
-                    src={selected.payload}
-                    name={null}
-                    collapsed={1}        // collapse big objects by default
-                    enableClipboard={false}
-                    displayDataTypes={false}
-                    displayObjectSize={true}
-                    indentWidth={2}
-                    style={{
-                      background: "transparent",
-                      fontSize: "13px",
-                      lineHeight: 1.35,
-                    }}
-                  />
-                </div>
+                <div style={{ padding: 12, opacity: 0.8 }}>Choose an event to view JSON.</div>
+              ) : viewMode === "lines" ? (
+                <LineViewer text={selectedJson} />
               ) : (
-                <div
-                  style={{
-                    border: softBorder(),
-                    borderRadius: 12,
-                    overflow: "hidden",
-                  }}
-                >
-                  <LineViewer text={selectedJson} />
+                <div style={{ maxHeight: "78vh", overflow: "auto", border: softBorder(), borderRadius: 12, padding: 10 }}>
+                  <JsonTree value={selected.payload} />
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     </div>
   );
 }
 
-/** Line-by-line viewer with line numbers */
-function LineViewer({ text }: { text: string }) {
-  const lines = text.split("\n");
+/** -------- Tree Viewer (no deps) -------- */
+
+function JsonTree({ value }: { value: any }) {
+  return <Node name={null} value={value} depth={0} />;
+}
+
+function Node({ name, value, depth }: { name: string | null; value: any; depth: number }) {
+  const isObj = value !== null && typeof value === "object";
+  const isArr = Array.isArray(value);
+
+  const [open, setOpen] = useState(depth < 1); // open first level by default
+
+  const indent = { paddingLeft: depth * 14 };
+
+  if (!isObj) {
+    return (
+      <div style={{ ...row(), ...indent }}>
+        {name !== null && <span style={keyStyle()}>"{name}"</span>}
+        {name !== null && <span style={{ opacity: 0.7 }}>: </span>}
+        <span style={primitiveStyle(value)}>{formatPrimitive(value)}</span>
+      </div>
+    );
+  }
+
+  const keys = isArr ? value.map((_: any, i: number) => String(i)) : Object.keys(value);
+  const label = isArr ? `Array(${keys.length})` : `Object(${keys.length})`;
 
   return (
-    <div style={{ maxHeight: "78vh", overflow: "auto" }}>
+    <div>
+      <div style={{ ...row(), ...indent }}>
+        <button onClick={() => setOpen(!open)} style={expander()}>
+          {open ? "▾" : "▸"}
+        </button>
+
+        {name !== null && <span style={keyStyle()}>"{name}"</span>}
+        {name !== null && <span style={{ opacity: 0.7 }}>: </span>}
+
+        <span style={{ opacity: 0.75 }}>{label}</span>
+      </div>
+
+      {open && (
+        <div>
+          {keys.map((k: string) => (
+            <Node
+              key={k}
+              name={isArr ? null : k}
+              value={isArr ? value[Number(k)] : value[k]}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatPrimitive(v: any) {
+  if (v === null) return "null";
+  if (typeof v === "string") return `"${v}"`;
+  if (typeof v === "undefined") return "undefined";
+  return String(v);
+}
+
+function primitiveStyle(v: any) {
+  if (v === null) return { color: "#d19a66" };
+  if (typeof v === "string") return { color: "#98c379" };
+  if (typeof v === "number") return { color: "#61afef" };
+  if (typeof v === "boolean") return { color: "#e06c75" };
+  return { color: "#eaeaea" };
+}
+
+/** -------- Line Viewer -------- */
+
+function LineViewer({ text }: { text: string }) {
+  const lines = text.split("\n");
+  return (
+    <div style={{ maxHeight: "78vh", overflow: "auto", border: softBorder(), borderRadius: 12 }}>
       {lines.map((line, idx) => (
-        <div
-          key={idx}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "56px 1fr",
-            gap: 12,
-            padding: "6px 12px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            fontSize: 13,
-            lineHeight: 1.45,
-          }}
-        >
-          <div style={{ opacity: 0.45, textAlign: "right", userSelect: "none" }}>
-            {idx + 1}
-          </div>
-          <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{line}</div>
+        <div key={idx} style={lineRow()}>
+          <div style={lineNo()}>{idx + 1}</div>
+          <div style={lineText()}>{line}</div>
         </div>
       ))}
     </div>
   );
 }
 
-/** styles */
-function softBorder() {
-  return "1px solid rgba(255,255,255,0.10)";
+/** -------- Styles -------- */
+
+function page() {
+  return {
+    minHeight: "100vh",
+    padding: 16,
+    background: "#0b0b0c",
+    color: "#eaeaea",
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial',
+  } as const;
+}
+
+function header() {
+  return {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  } as const;
+}
+
+function grid() {
+  return {
+    marginTop: 14,
+    display: "grid",
+    gridTemplateColumns: "460px 1fr",
+    gap: 14,
+  } as const;
 }
 
 function panel() {
@@ -301,6 +322,10 @@ function panel() {
     padding: 14,
     boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
   } as const;
+}
+
+function softBorder() {
+  return "1px solid rgba(255,255,255,0.10)";
 }
 
 function input() {
@@ -320,26 +345,23 @@ function btn() {
     padding: "10px 12px",
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.12)",
-    background: "#ff3b30",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 600,
-  } as const;
-}
-
-function btnSecondary() {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.06)",
     color: "#eaeaea",
     cursor: "pointer",
-    fontWeight: 600,
+    fontWeight: 700,
   } as const;
 }
 
-function listItem() {
+function btnDanger() {
+  return {
+    ...btn(),
+    background: "#ff3b30",
+    border: "1px solid rgba(255,255,255,0.16)",
+    color: "#fff",
+  } as const;
+}
+
+function card() {
   return {
     width: "100%",
     textAlign: "left" as const,
@@ -352,14 +374,34 @@ function listItem() {
   };
 }
 
-function listItemActive() {
+function cardActive() {
   return {
     border: "1px solid rgba(255,255,255,0.22)",
     background: "rgba(255,255,255,0.08)",
   };
 }
 
-function pill() {
+function badge() {
+  return {
+    fontSize: 11,
+    opacity: 0.85,
+    padding: "2px 8px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+  } as const;
+}
+
+function toggleWrap() {
+  return {
+    display: "flex",
+    gap: 6,
+    padding: 4,
+    borderRadius: 10,
+    border: softBorder(),
+  } as const;
+}
+
+function toggleOff() {
   return {
     padding: "8px 10px",
     borderRadius: 10,
@@ -367,15 +409,70 @@ function pill() {
     background: "transparent",
     color: "rgba(255,255,255,0.75)",
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: 12,
   } as const;
 }
 
-function pillActive() {
+function toggleOn() {
   return {
-    ...pill(),
+    ...toggleOff(),
     background: "rgba(255,255,255,0.12)",
     color: "#fff",
   } as const;
+}
+
+function expander() {
+  return {
+    border: "none",
+    background: "transparent",
+    color: "rgba(255,255,255,0.7)",
+    cursor: "pointer",
+    width: 22,
+    height: 22,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 6,
+    userSelect: "none" as const,
+  };
+}
+
+function row() {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "3px 0",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 13,
+    lineHeight: 1.35,
+  } as const;
+}
+
+function keyStyle() {
+  return { color: "#e5c07b" } as const;
+}
+
+function lineRow() {
+  return {
+    display: "grid",
+    gridTemplateColumns: "56px 1fr",
+    gap: 12,
+    padding: "6px 12px",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+    fontFamily:
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    fontSize: 13,
+    lineHeight: 1.45,
+  } as const;
+}
+
+function lineNo() {
+  return { opacity: 0.45, textAlign: "right", userSelect: "none" as const } as const;
+}
+
+function lineText() {
+  return { whiteSpace: "pre-wrap" as const, wordBreak: "break-word" as const } as const;
 }
