@@ -35,6 +35,8 @@ export async function POST(req: Request) {
   await put(FILE, JSON.stringify(trimmed), {
     access: "public",
     addRandomSuffix: false, // IMPORTANT: overwrite same “file”
+      allowOverwrite: true,      // ✅ ADD THIS
+
     contentType: "application/json",
   });
 

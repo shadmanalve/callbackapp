@@ -15,6 +15,8 @@ export async function POST() {
   await put(FILE, "[]", {
     access: "public",
     addRandomSuffix: false,
+      allowOverwrite: true,      // ✅ ADD THIS
+
     contentType: "application/json",
   });
 
