@@ -14,7 +14,6 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // optional: if already logged in and visiting login, redirect to events
   if (isLogin && authed) {
     const url = req.nextUrl.clone();
     url.pathname = "/events";
