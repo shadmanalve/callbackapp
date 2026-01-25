@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-const KEY = "events.json";
+export const runtime = "nodejs";
+
+const FILE = path.join("/tmp", "events.json");
 
 export async function POST(req: Request) {
   const secret = req.headers.get("x-ingest-secret");
@@ -9,6 +12,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
-  await kv.set(KEY, []);
+  await fs.writeFile(FILE, "[]", "utf8");
   return NextResponse.json({ ok: true });
 }

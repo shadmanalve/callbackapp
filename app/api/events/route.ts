@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-const KEY = "events.json";
+export const runtime = "nodejs";
+
+const FILE = path.join("/tmp", "events.json");
 
 export async function GET() {
-  const events = (await kv.get<any[]>(KEY)) ?? [];
-  return NextResponse.json({ ok: true, events });
+  try {
+    const txt = await fs.readFile(FILE, "utf8");
+    const data = JSON.parse(txt);
+    const events = Array.isArray(data) ? data : [];
+    return NextResponse.json({ ok: true, events });
+  } catch {
+    return NextResponse.json({ ok: true, events: [] });
+  }
 }

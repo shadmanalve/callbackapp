@@ -1,7 +1,28 @@
 import { NextResponse } from "next/server";
-import { kv } from "@vercel/kv";
+import fs from "node:fs/promises";
+import path from "node:path";
 
-const KEY = "events.json";
+export const runtime = "nodejs";
+
+const FILE = path.join("/tmp", "events.json");
+const MAX_EVENTS = 2000;
+
+// 1) Put the lock HERE (module scope, outside POST)
+let writing: Promise<void> = Promise.resolve();
+
+async function readEvents() {
+  try {
+    const txt = await fs.readFile(FILE, "utf8");
+    const data = JSON.parse(txt);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeEvents(events: any[]) {
+  await fs.writeFile(FILE, JSON.stringify(events, null, 2), "utf8");
+}
 
 export async function POST(req: Request) {
   const secret = req.headers.get("x-ingest-secret");
@@ -10,17 +31,26 @@ export async function POST(req: Request) {
   }
 
   const payload = await req.json().catch(() => null);
-  if (!payload) return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  if (!payload) {
+    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  }
 
-  const event = { id: crypto.randomUUID(), receivedAt: new Date().toISOString(), payload };
+  const event = {
+    id: crypto.randomUUID(),
+    receivedAt: new Date().toISOString(),
+    payload,
+  };
 
-  const events = (await kv.get<any[]>(KEY)) ?? [];
-  events.unshift(event);
+  // 2) Use the lock HERE, replacing direct read/write
+  writing = writing.then(async () => {
+    const events = await readEvents();
+    events.unshift(event);
+    if (events.length > MAX_EVENTS) events.length = MAX_EVENTS;
+    await writeEvents(events);
+  });
 
-  // optional cap (prevents unbounded growth)
-  if (events.length > 2000) events.length = 2000;
-
-  await kv.set(KEY, events);
+  // 3) Wait for YOUR write to finish
+  await writing;
 
   return NextResponse.json({ ok: true, id: event.id });
 }
