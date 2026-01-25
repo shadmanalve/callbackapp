@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { kv } from "@vercel/kv";
 
-const PREFIX = "events/";
-const CLEAR_FILE = `${PREFIX}_clear.json`;
+const KEY = "events.json";
 
 export async function POST(req: Request) {
   const secret = req.headers.get("x-ingest-secret");
@@ -13,19 +12,15 @@ export async function POST(req: Request) {
   const payload = await req.json().catch(() => null);
   if (!payload) return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
 
-  const event = {
-    id: crypto.randomUUID(),
-    receivedAt: new Date().toISOString(),
-    payload,
-  };
+  const event = { id: crypto.randomUUID(), receivedAt: new Date().toISOString(), payload };
 
-  // unique file per event => no overwrite issues ever
-  const filename = `${PREFIX}${Date.now()}-${event.id}.json`;
+  const events = (await kv.get<any[]>(KEY)) ?? [];
+  events.unshift(event);
 
-  await put(filename, JSON.stringify(event), {
-    access: "public",
-    contentType: "application/json",
-  });
+  // optional cap (prevents unbounded growth)
+  if (events.length > 2000) events.length = 2000;
 
-  return NextResponse.json({ ok: true });
+  await kv.set(KEY, events);
+
+  return NextResponse.json({ ok: true, id: event.id });
 }

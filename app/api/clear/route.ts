@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
-import { put } from "@vercel/blob";
-import { cookies } from "next/headers";
+import { kv } from "@vercel/kv";
 
-const PREFIX = "events/";
-const CLEAR_FILE = `${PREFIX}_clear.json`;
+const KEY = "events.json";
 
-export async function POST() {
-  const cookieName = process.env.VIEWER_COOKIE_NAME || "wv_auth";
-  const jar = await cookies();
-  const authed = jar.get(cookieName)?.value === "1";
-  if (!authed) return NextResponse.json({ ok: false }, { status: 401 });
+export async function POST(req: Request) {
+  const secret = req.headers.get("x-ingest-secret");
+  if (!process.env.INGEST_SECRET || secret !== process.env.INGEST_SECRET) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
 
-  await put(CLEAR_FILE, JSON.stringify({ clearedAt: new Date().toISOString() }), {
-    access: "public",
-    allowOverwrite: true,
-    contentType: "application/json",
-  });
-
+  await kv.set(KEY, []);
   return NextResponse.json({ ok: true });
 }
